@@ -1,20 +1,31 @@
 package com.example.taskmapfinal
 
+import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
 class MainActivity : AppCompatActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+
+    override fun onCreate(estadoInstancia: Bundle?) {
+        super.onCreate(estadoInstancia)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { vista, insets ->
+            val barrasSistema = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            vista.setPadding(barrasSistema.left, barrasSistema.top, barrasSistema.right, barrasSistema.bottom)
             insets
         }
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            val intentLogin = Intent(this, Login::class.java)
+            startActivity(intentLogin)
+            finish()
+        }, 3000)
     }
 }
