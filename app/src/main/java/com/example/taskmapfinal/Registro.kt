@@ -1,4 +1,126 @@
 package com.example.taskmapfinal
 
-class Registro {
+import android.content.Intent
+import android.os.Bundle
+import android.util.Patterns
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
+
+class Registro : AppCompatActivity() {
+
+    private lateinit var tilNombre: TextInputLayout
+    private lateinit var tilEmailRegistro: TextInputLayout
+    private lateinit var tilPasswordRegistro: TextInputLayout
+    private lateinit var tilPasswordRepetir: TextInputLayout
+
+    private lateinit var etNombre: TextInputEditText
+    private lateinit var etEmailRegistro: TextInputEditText
+    private lateinit var etPasswordRegistro: TextInputEditText
+    private lateinit var etPasswordRepetir: TextInputEditText
+
+    private lateinit var btnRegistrar: MaterialButton
+    private lateinit var tvVolverLogin: TextView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.registro)
+
+        enlazarVistas()
+        configurarEventos()
+    }
+
+    private fun enlazarVistas() {
+        tilNombre = findViewById(R.id.tilNombre)
+        tilEmailRegistro = findViewById(R.id.tilEmailRegistro)
+        tilPasswordRegistro = findViewById(R.id.tilPasswordRegistro)
+        tilPasswordRepetir = findViewById(R.id.tilPasswordRepetir)
+
+        etNombre = findViewById(R.id.etNombre)
+        etEmailRegistro = findViewById(R.id.etEmailRegistro)
+        etPasswordRegistro = findViewById(R.id.etPasswordRegistro)
+        etPasswordRepetir = findViewById(R.id.etPasswordRepetir)
+
+        btnRegistrar = findViewById(R.id.btnRegistrar)
+        tvVolverLogin = findViewById(R.id.tvVolverLogin)
+    }
+
+    private fun configurarEventos() {
+        tvVolverLogin.setOnClickListener { irAlLogin() }
+        btnRegistrar.setOnClickListener { registrarUsuario() }
+    }
+
+    private fun registrarUsuario() {
+        limpiarErrores()
+
+        val nombre = etNombre.text?.toString()?.trim().orEmpty()
+        val correo = etEmailRegistro.text?.toString()?.trim().orEmpty()
+        val contrasena = etPasswordRegistro.text?.toString().orEmpty()
+        val contrasenaRepetida = etPasswordRepetir.text?.toString().orEmpty()
+
+        if (!validarFormulario(nombre, correo, contrasena, contrasenaRepetida)) return
+
+        btnRegistrar.isEnabled = false
+
+        Toast.makeText(this, "Cuenta creada correctamente", Toast.LENGTH_SHORT).show()
+
+        btnRegistrar.isEnabled = true
+        irAlLogin()
+    }
+
+    private fun validarFormulario(
+        nombre: String,
+        correo: String,
+        contrasena: String,
+        contrasenaRepetida: String
+    ): Boolean {
+        var ok = true
+
+        if (nombre.isBlank()) {
+            tilNombre.error = "El nombre es obligatorio"
+            ok = false
+        }
+
+        if (correo.isBlank()) {
+            tilEmailRegistro.error = "El email es obligatorio"
+            ok = false
+        } else if (!Patterns.EMAIL_ADDRESS.matcher(correo).matches()) {
+            tilEmailRegistro.error = "Email no válido"
+            ok = false
+        }
+
+        if (contrasena.isBlank()) {
+            tilPasswordRegistro.error = "La contraseña es obligatoria"
+            ok = false
+        } else if (contrasena.length < 6) {
+            tilPasswordRegistro.error = "Mínimo 6 caracteres"
+            ok = false
+        }
+
+        if (contrasenaRepetida.isBlank()) {
+            tilPasswordRepetir.error = "Repite la contraseña"
+            ok = false
+        } else if (contrasena != contrasenaRepetida) {
+            tilPasswordRepetir.error = "Las contraseñas no coinciden"
+            ok = false
+        }
+
+        return ok
+    }
+
+    private fun limpiarErrores() {
+        tilNombre.error = null
+        tilEmailRegistro.error = null
+        tilPasswordRegistro.error = null
+        tilPasswordRepetir.error = null
+    }
+
+    private fun irAlLogin() {
+        val intent = Intent(this, Login::class.java)
+        startActivity(intent)
+        finish()
+    }
 }

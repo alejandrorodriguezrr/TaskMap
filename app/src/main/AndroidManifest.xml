@@ -16,6 +16,8 @@
             android:name=".Login"
             android:exported="false" />
 
+        <activity android:name=".Registro" />
+        <activity android:name=".MenuPrincipal" />
         <activity
             android:name=".MainActivity"
             android:exported="true">
