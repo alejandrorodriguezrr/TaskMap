@@ -1,0 +1,59 @@
+CREATE DATABASE IF NOT EXISTS taskmap
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE taskmap;
+
+-- 1) Usuarios (login por correo y contraseña)
+CREATE TABLE IF NOT EXISTS usuarios (
+  id_usuario BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(80) NULL,
+  correo VARCHAR(180) NOT NULL,
+  contrasena_hash VARCHAR(255) NOT NULL,
+  fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_usuarios_correo (correo)
+) ENGINE=InnoDB;
+
+-- 2) Etiquetas (solo lo imprescindible)
+CREATE TABLE IF NOT EXISTS etiquetas (
+  id_etiqueta BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_usuario BIGINT UNSIGNED NOT NULL,
+  nombre VARCHAR(40) NOT NULL,
+  fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_etiqueta_usuario_nombre (id_usuario, nombre),
+  CONSTRAINT fk_etiquetas_usuario
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+    ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 3) Tareas (solo lo imprescindible)
+CREATE TABLE IF NOT EXISTS tareas (
+  id_tarea BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_usuario BIGINT UNSIGNED NOT NULL,
+  id_etiqueta BIGINT UNSIGNED NULL,
+
+  titulo VARCHAR(120) NOT NULL,
+  descripcion TEXT NULL,
+
+  prioridad ENUM('baja','media','alta') NOT NULL DEFAULT 'media',
+  estado ENUM('pendiente','en_progreso','hecha') NOT NULL DEFAULT 'pendiente',
+
+  fecha_vencimiento DATETIME NULL,
+
+  latitud DECIMAL(10,7) NULL,
+  longitud DECIMAL(10,7) NULL,
+  direccion VARCHAR(255) NULL,
+
+  fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_tareas_usuario
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+    ON DELETE CASCADE,
+
+  CONSTRAINT fk_tareas_etiqueta
+    FOREIGN KEY (id_etiqueta) REFERENCES etiquetas(id_etiqueta)
+    ON DELETE SET NULL,
+
+  KEY idx_tareas_usuario_estado (id_usuario, estado),
+  KEY idx_tareas_usuario_vencimiento (id_usuario, fecha_vencimiento)
+) ENGINE=InnoDB;
