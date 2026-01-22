@@ -2,4 +2,10 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="chip_pendiente">#E0EAFF</color>
+    <color name="chip_progreso">#FEF3C7</color>
+    <color name="chip_hecha">#D1FAE5</color>
+    <color name="prioridad_baja">#D1FAE5</color>
+    <color name="prioridad_media">#E0EAFF</color>
+    <color name="prioridad_alta">#FEE2E2</color>
 </resources>

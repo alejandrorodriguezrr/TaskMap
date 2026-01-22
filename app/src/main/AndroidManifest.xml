@@ -18,6 +18,12 @@
 
         <activity android:name=".Registro" />
         <activity android:name=".MenuPrincipal" />
+        <activity android:name=".ListaTareas" />
+        <activity android:name=".DetalleTarea" />
+        <activity android:name=".NuevaTarea" />
+        <activity android:name=".Mapa" />
+
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -26,6 +32,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="@string/google_maps_key" />
+
 
     </application>
 
