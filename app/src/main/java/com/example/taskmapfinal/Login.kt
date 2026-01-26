@@ -8,9 +8,14 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
+import com.example.taskmapfinal.api.ClienteApi
+import com.example.taskmapfinal.api.SolicitudLogin
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import kotlinx.coroutines.launch
+import java.io.IOException
 
 class Login : AppCompatActivity() {
 
@@ -53,17 +58,7 @@ class Login : AppCompatActivity() {
     }
 
     private fun iniciarListeners() {
-        btnEntrar.setOnClickListener {
-            val correo = etCorreo.text?.toString()?.trim().orEmpty()
-            val contrasena = etContrasena.text?.toString()?.trim().orEmpty()
-
-            if (!validarFormulario(correo, contrasena)) return@setOnClickListener
-
-            Toast.makeText(this, "Login correcto", Toast.LENGTH_SHORT).show()
-
-            startActivity(Intent(this, MenuPrincipal::class.java))
-            finish()
-        }
+        btnEntrar.setOnClickListener { iniciarSesionServidor() }
 
         tvOlvido.setOnClickListener {
             Toast.makeText(this, "Recuperar contraseña pendiente", Toast.LENGTH_SHORT).show()
@@ -75,6 +70,56 @@ class Login : AppCompatActivity() {
 
         btnGoogle.setOnClickListener {
             Toast.makeText(this, "Google Sign-In pendiente", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun iniciarSesionServidor() {
+        val correo = etCorreo.text?.toString()?.trim().orEmpty()
+        val contrasena = etContrasena.text?.toString()?.trim().orEmpty()
+
+        if (!validarFormulario(correo, contrasena)) return
+
+        tilCorreo.error = null
+        tilContrasena.error = null
+        btnEntrar.isEnabled = false
+
+        lifecycleScope.launch {
+            try {
+                val respuestaHttp = ClienteApi.api.iniciarSesion(
+                    SolicitudLogin(correo = correo, contrasena = contrasena)
+                )
+
+                if (respuestaHttp.isSuccessful) {
+                    val cuerpo = respuestaHttp.body()
+
+                    if (cuerpo != null && cuerpo.ok) {
+                        Toast.makeText(this@Login, "Login correcto", Toast.LENGTH_SHORT).show()
+                        startActivity(Intent(this@Login, MenuPrincipal::class.java))
+                        finish()
+                    } else {
+                        btnEntrar.isEnabled = true
+                        val mensaje = cuerpo?.error ?: "Credenciales incorrectas"
+                        tilContrasena.error = mensaje
+                    }
+                } else {
+                    btnEntrar.isEnabled = true
+                    val mensaje = when (respuestaHttp.code()) {
+                        401 -> "Credenciales incorrectas"
+                        404 -> "No se encuentra el endpoint en el servidor"
+                        409 -> "Conflicto al iniciar sesión"
+                        500 -> "Error interno del servidor"
+                        else -> "Error HTTP: ${respuestaHttp.code()}"
+                    }
+                    tilContrasena.error = mensaje
+                }
+
+            } catch (e: IOException) {
+                btnEntrar.isEnabled = true
+                Toast.makeText(this@Login, "Error de conexión con el servidor", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                btnEntrar.isEnabled = true
+                Toast.makeText(this@Login, "Error inesperado", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

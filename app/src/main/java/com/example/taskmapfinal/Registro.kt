@@ -6,9 +6,14 @@ import android.util.Patterns
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.example.taskmapfinal.api.ClienteApi
+import com.example.taskmapfinal.api.PeticionRegistro
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import kotlinx.coroutines.launch
+import java.io.IOException
 
 class Registro : AppCompatActivity() {
 
@@ -65,10 +70,54 @@ class Registro : AppCompatActivity() {
 
         btnRegistrar.isEnabled = false
 
-        Toast.makeText(this, "Cuenta creada correctamente", Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            try {
+                val respuestaHttp = ClienteApi.api.registrar(
+                    PeticionRegistro(nombre, correo, contrasena)
+                )
 
-        btnRegistrar.isEnabled = true
-        irAlLogin()
+                if (respuestaHttp.isSuccessful) {
+                    val cuerpo = respuestaHttp.body()
+
+                    if (cuerpo != null && cuerpo.ok) {
+                        Toast.makeText(this@Registro, "Cuenta creada correctamente", Toast.LENGTH_SHORT).show()
+                        irAlLogin()
+                    } else {
+                        btnRegistrar.isEnabled = true
+                        val mensaje = cuerpo?.error ?: "No se pudo registrar"
+                        if (mensaje.contains("correo", ignoreCase = true) || mensaje.contains("existe", ignoreCase = true)) {
+                            tilEmailRegistro.error = mensaje
+                        } else {
+                            Toast.makeText(this@Registro, mensaje, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    btnRegistrar.isEnabled = true
+
+                    val mensaje = when (respuestaHttp.code()) {
+                        409 -> "Ese correo ya existe"
+                        422 -> "Datos inválidos"
+                        400 -> "Solicitud incorrecta"
+                        404 -> "No se encuentra el endpoint en el servidor"
+                        500 -> "Error interno del servidor"
+                        else -> "Error HTTP: ${respuestaHttp.code()}"
+                    }
+
+                    if (respuestaHttp.code() == 409) {
+                        tilEmailRegistro.error = mensaje
+                    } else {
+                        Toast.makeText(this@Registro, mensaje, Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+            } catch (e: IOException) {
+                btnRegistrar.isEnabled = true
+                Toast.makeText(this@Registro, "Error de conexión con el servidor", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                btnRegistrar.isEnabled = true
+                Toast.makeText(this@Registro, "Error inesperado", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun validarFormulario(
@@ -119,8 +168,7 @@ class Registro : AppCompatActivity() {
     }
 
     private fun irAlLogin() {
-        val intent = Intent(this, Login::class.java)
-        startActivity(intent)
+        startActivity(Intent(this, Login::class.java))
         finish()
     }
 }
