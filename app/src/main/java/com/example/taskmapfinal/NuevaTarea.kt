@@ -1,200 +1,511 @@
 package com.example.taskmapfinal
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import android.content.Intent
 import android.os.Bundle
-import android.view.MenuItem
+import android.view.View
 import android.widget.ArrayAdapter
-import android.widget.Spinner
+import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.taskmapfinal.api.ClienteApi
+import com.example.taskmapfinal.api.PeticionTareaActualizar
 import com.example.taskmapfinal.api.PeticionTareaCrear
+import com.example.taskmapfinal.api.TareaApi
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.launch
 import java.io.IOException
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Calendar
 
 class NuevaTarea : AppCompatActivity() {
 
     private lateinit var toolbarNuevaTarea: MaterialToolbar
-    private var guardando: Boolean = false
+
+    private lateinit var tilTituloTarea: TextInputLayout
+    private lateinit var etTituloTarea: TextInputEditText
+
+    private lateinit var tilDescripcionTarea: TextInputLayout
+    private lateinit var etDescripcionTarea: TextInputEditText
+
+    private lateinit var tilPrioridadTarea: TextInputLayout
+    private lateinit var actPrioridadTarea: MaterialAutoCompleteTextView
+
+    private lateinit var tilEstadoTarea: TextInputLayout
+    private lateinit var actEstadoTarea: MaterialAutoCompleteTextView
+
+    private lateinit var tilFechaTarea: TextInputLayout
+    private lateinit var etFechaTarea: TextInputEditText
+
+    private lateinit var tilHoraTarea: TextInputLayout
+    private lateinit var etHoraTarea: TextInputEditText
+
+    private lateinit var tvUbicacionSeleccionada: TextView
+    private lateinit var btnCambiarEnMapa: MaterialButton
+
+    private lateinit var btnGuardarTarea: MaterialButton
+    private lateinit var btnCancelarTarea: MaterialButton
+
+    private val formatoFechaUi = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    private val formatoHoraUi = DateTimeFormatter.ofPattern("HH:mm")
+    private val formatoFechaVencimientoApi = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
+    private var guardando = false
+    private var cargando = false
+
+    private var idUsuario: Int = 0
+    private var idTarea: Long = 0L
+    private var modoEdicion: Boolean = false
+
+    // Ubicación (de momento sin mapa real; preparado)
+    private var latitud: Double? = null
+    private var longitud: Double? = null
+    private var direccion: String? = null
 
     override fun onCreate(estadoInstancia: Bundle?) {
         super.onCreate(estadoInstancia)
         setContentView(R.layout.nueva_tarea)
 
-        toolbarNuevaTarea = findViewById(R.id.toolbarNuevaTarea)
-        setSupportActionBar(toolbarNuevaTarea)
-        toolbarNuevaTarea.setNavigationOnClickListener { finish() }
+        enlazarVistas()
+        configurarToolbar()
+        configurarDesplegables()
+        configurarFechaHora()
+        configurarBotones()
 
-        configurarAccionGuardar()
-    }
-
-    private fun configurarAccionGuardar() {
-        toolbarNuevaTarea.menu.clear()
-
-        val itemGuardar: MenuItem = toolbarNuevaTarea.menu.add("Guardar")
-        itemGuardar.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-
-        itemGuardar.setOnMenuItemClickListener {
-            if (!guardando) {
-                mostrarDialogoNuevaTarea()
-            }
-            true
-        }
-    }
-
-    private fun mostrarDialogoNuevaTarea() {
-        val contenedorTitulo = TextInputLayout(this)
-        contenedorTitulo.hint = "Título"
-
-        val etTitulo = TextInputEditText(this)
-        contenedorTitulo.addView(etTitulo)
-
-        val contenedorDescripcion = TextInputLayout(this)
-        contenedorDescripcion.hint = "Descripción (opcional)"
-
-        val etDescripcion = TextInputEditText(this)
-        contenedorDescripcion.addView(etDescripcion)
-
-        val spinnerPrioridad = Spinner(this)
-        val opcionesPrioridad = listOf("baja", "media", "alta")
-        spinnerPrioridad.adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_dropdown_item,
-            opcionesPrioridad
-        )
-        spinnerPrioridad.setSelection(1)
-
-        val spinnerEstado = Spinner(this)
-        val opcionesEstado = listOf("pendiente", "en_progreso", "hecha")
-        spinnerEstado.adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_dropdown_item,
-            opcionesEstado
-        )
-        spinnerEstado.setSelection(0)
-
-        val layout = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            val padding = (16 * resources.displayMetrics.density).toInt()
-            setPadding(padding, padding, padding, padding)
-
-            addView(contenedorTitulo)
-            addView(contenedorDescripcion)
-
-            val tvPrioridad = android.widget.TextView(this@NuevaTarea).apply {
-                text = "Prioridad"
-                setPadding(0, padding / 2, 0, 0)
-            }
-            addView(tvPrioridad)
-            addView(spinnerPrioridad)
-
-            val tvEstado = android.widget.TextView(this@NuevaTarea).apply {
-                text = "Estado"
-                setPadding(0, padding / 2, 0, 0)
-            }
-            addView(tvEstado)
-            addView(spinnerEstado)
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Nueva tarea")
-            .setView(layout)
-            .setNegativeButton("Cancelar", null)
-            .setPositiveButton("Guardar") { _, _ ->
-                val titulo = etTitulo.text?.toString()?.trim().orEmpty()
-                val descripcion = etDescripcion.text?.toString()?.trim().orEmpty()
-                val prioridad = spinnerPrioridad.selectedItem.toString()
-                val estado = spinnerEstado.selectedItem.toString()
-
-                if (titulo.isBlank()) {
-                    Toast.makeText(this, "El título es obligatorio", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-
-                crearTareaServidor(
-                    titulo = titulo,
-                    descripcion = if (descripcion.isBlank()) null else descripcion,
-                    prioridad = prioridad,
-                    estado = estado
-                )
-            }
-            .show()
-    }
-
-    private fun crearTareaServidor(
-        titulo: String,
-        descripcion: String?,
-        prioridad: String,
-        estado: String
-    ) {
-        val idUsuario = obtenerIdUsuario()
+        idUsuario = obtenerIdUsuario()
         if (idUsuario <= 0) {
-            Toast.makeText(this, "No hay sesión iniciada", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "No hay sesión iniciada (id_usuario)", Toast.LENGTH_SHORT).show()
+            finish()
             return
         }
 
-        guardando = true
+        idTarea = intent.getLongExtra(EXTRA_ID_TAREA, 0L)
+        modoEdicion = idTarea > 0L
 
-        lifecycleScope.launch {
-            try {
-                val respuestaHttp = ClienteApi.api.crearTarea(
-                    PeticionTareaCrear(
-                        idUsuario = idUsuario,
-                        titulo = titulo,
-                        descripcion = descripcion,
-                        prioridad = prioridad,
-                        estado = estado,
-                        fechaVencimiento = null,
-                        idEtiqueta = null,
-                        latitud = null,
-                        longitud = null,
-                        direccion = null
-                    )
-                )
+        if (modoEdicion) {
+            toolbarNuevaTarea.title = "Editar tarea"
+            btnGuardarTarea.text = "Guardar cambios"
+            cargarDetalleParaEditar()
+        } else {
+            toolbarNuevaTarea.title = "Nueva tarea"
+            btnGuardarTarea.text = "Guardar"
+        }
+    }
 
-                guardando = false
+    private fun enlazarVistas() {
+        toolbarNuevaTarea = findViewById(R.id.toolbarNuevaTarea)
 
-                if (respuestaHttp.isSuccessful) {
-                    val cuerpo = respuestaHttp.body()
-                    if (cuerpo != null && cuerpo.ok) {
-                        Toast.makeText(this@NuevaTarea, "Tarea creada", Toast.LENGTH_SHORT).show()
-                        finish()
-                    } else {
-                        Toast.makeText(
-                            this@NuevaTarea,
-                            cuerpo?.error ?: "No se pudo crear la tarea",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                } else {
-                    val mensaje = when (respuestaHttp.code()) {
-                        400 -> "Solicitud incorrecta"
-                        404 -> "No existe tareas_crear.php en el servidor"
-                        422 -> "Datos inválidos"
-                        500 -> "Error interno del servidor"
-                        else -> "Error HTTP: ${respuestaHttp.code()}"
-                    }
-                    Toast.makeText(this@NuevaTarea, mensaje, Toast.LENGTH_SHORT).show()
-                }
+        tilTituloTarea = findViewById(R.id.tilTituloTarea)
+        etTituloTarea = findViewById(R.id.etTituloTarea)
 
-            } catch (e: IOException) {
-                guardando = false
-                Toast.makeText(this@NuevaTarea, "Error de conexión con el servidor", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                guardando = false
-                Toast.makeText(this@NuevaTarea, "Error inesperado", Toast.LENGTH_SHORT).show()
+        tilDescripcionTarea = findViewById(R.id.tilDescripcionTarea)
+        etDescripcionTarea = findViewById(R.id.etDescripcionTarea)
+
+        tilPrioridadTarea = findViewById(R.id.tilPrioridadTarea)
+        actPrioridadTarea = findViewById(R.id.actPrioridadTarea)
+
+        tilEstadoTarea = findViewById(R.id.tilEstadoTarea)
+        actEstadoTarea = findViewById(R.id.actEstadoTarea)
+
+        tilFechaTarea = findViewById(R.id.tilFechaTarea)
+        etFechaTarea = findViewById(R.id.etFechaTarea)
+
+        tilHoraTarea = findViewById(R.id.tilHoraTarea)
+        etHoraTarea = findViewById(R.id.etHoraTarea)
+
+        tvUbicacionSeleccionada = findViewById(R.id.tvUbicacionSeleccionada)
+        btnCambiarEnMapa = findViewById(R.id.btnCambiarEnMapa)
+
+        btnGuardarTarea = findViewById(R.id.btnGuardarTarea)
+        btnCancelarTarea = findViewById(R.id.btnCancelarTarea)
+    }
+
+    private fun configurarToolbar() {
+        setSupportActionBar(toolbarNuevaTarea)
+        toolbarNuevaTarea.setNavigationOnClickListener { finish() }
+    }
+
+    private fun configurarDesplegables() {
+        val prioridadesUi = listOf("Baja", "Media", "Alta")
+        actPrioridadTarea.setAdapter(ArrayAdapter(this, android.R.layout.simple_list_item_1, prioridadesUi))
+        actPrioridadTarea.setText("Media", false)
+
+        val estadosUi = listOf("Pendiente", "En progreso", "Hecha")
+        actEstadoTarea.setAdapter(ArrayAdapter(this, android.R.layout.simple_list_item_1, estadosUi))
+        actEstadoTarea.setText("Pendiente", false)
+    }
+
+    private fun configurarFechaHora() {
+        // Valores por defecto si están vacíos
+        if (etFechaTarea.text.isNullOrBlank()) {
+            etFechaTarea.setText(LocalDate.now().format(formatoFechaUi))
+        }
+        if (etHoraTarea.text.isNullOrBlank()) {
+            etHoraTarea.setText(LocalTime.now().withSecond(0).withNano(0).format(formatoHoraUi))
+        }
+
+        etFechaTarea.setOnClickListener { abrirSelectorFecha() }
+        tilFechaTarea.setOnClickListener { abrirSelectorFecha() }
+
+        etHoraTarea.setOnClickListener { abrirSelectorHora() }
+        tilHoraTarea.setOnClickListener { abrirSelectorHora() }
+    }
+
+    private fun configurarBotones() {
+        btnCancelarTarea.setOnClickListener { finish() }
+
+        btnCambiarEnMapa.setOnClickListener {
+            val intent = Intent(this, Mapa::class.java)
+
+            // Si ya hay ubicación (editando), centra el mapa ahí
+            if (latitud != null && longitud != null) {
+                intent.putExtra(Mapa.EXTRA_LATITUD_INICIAL, latitud!!)
+                intent.putExtra(Mapa.EXTRA_LONGITUD_INICIAL, longitud!!)
+            }
+
+            lanzadorMapa.launch(intent)
+        }
+
+
+        btnGuardarTarea.setOnClickListener {
+            if (guardando || cargando) return@setOnClickListener
+            if (modoEdicion) actualizarTareaServidor()
+            else crearTareaServidor()
+        }
+    }
+
+    private val lanzadorMapa = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { resultado ->
+        if (resultado.resultCode == RESULT_OK) {
+            val data = resultado.data ?: return@registerForActivityResult
+
+            latitud = data.getDoubleExtra(Mapa.EXTRA_LATITUD, 0.0)
+            longitud = data.getDoubleExtra(Mapa.EXTRA_LONGITUD, 0.0)
+            direccion = data.getStringExtra(Mapa.EXTRA_DIRECCION)
+
+            tvUbicacionSeleccionada.text = when {
+                !direccion.isNullOrBlank() -> direccion
+                else -> "$latitud, $longitud"
             }
         }
     }
 
-    private fun obtenerIdUsuario(): Int {
-        val prefs = getSharedPreferences("sesion_taskmap", MODE_PRIVATE)
-        return prefs.getInt("id_usuario", 0)
+
+    private fun cargarDetalleParaEditar() {
+        establecerEstadoUi(true)
+        cargando = true
+
+        lifecycleScope.launch {
+            try {
+                val resp = ClienteApi.api.obtenerDetalleTarea(idUsuario, idTarea)
+
+                if (!resp.isSuccessful) {
+                    Toast.makeText(this@NuevaTarea, "Error HTTP: ${resp.code()}", Toast.LENGTH_SHORT).show()
+                    finish()
+                    return@launch
+                }
+
+                val cuerpo = resp.body()
+                if (cuerpo == null || !cuerpo.ok || cuerpo.tarea == null) {
+                    Toast.makeText(this@NuevaTarea, cuerpo?.error ?: "No se pudo cargar la tarea", Toast.LENGTH_SHORT).show()
+                    finish()
+                    return@launch
+                }
+
+                rellenarFormulario(cuerpo.tarea)
+
+            } catch (_: IOException) {
+                Toast.makeText(this@NuevaTarea, "Error de conexión con el servidor", Toast.LENGTH_SHORT).show()
+                finish()
+            } catch (_: Exception) {
+                Toast.makeText(this@NuevaTarea, "Error inesperado", Toast.LENGTH_SHORT).show()
+                finish()
+            } finally {
+                cargando = false
+                establecerEstadoUi(false)
+            }
+        }
     }
 
+    private fun rellenarFormulario(t: TareaApi) {
+        etTituloTarea.setText(t.titulo ?: "")
+        etDescripcionTarea.setText(t.descripcion ?: "")
+
+        actPrioridadTarea.setText(
+            when ((t.prioridad ?: "media").trim().lowercase()) {
+                "baja" -> "Baja"
+                "alta" -> "Alta"
+                else -> "Media"
+            },
+            false
+        )
+
+        actEstadoTarea.setText(
+            when ((t.estado ?: "pendiente").trim().lowercase()) {
+                "en_progreso" -> "En progreso"
+                "hecha" -> "Hecha"
+                else -> "Pendiente"
+            },
+            false
+        )
+
+        // fecha_vencimiento viene tipo "yyyy-MM-dd HH:mm:ss"
+        val fv = t.fechaVencimiento
+        if (!fv.isNullOrBlank()) {
+            try {
+                val dt = LocalDateTime.parse(fv.replace(" ", "T"))
+                etFechaTarea.setText(dt.toLocalDate().format(formatoFechaUi))
+                etHoraTarea.setText(dt.toLocalTime().format(formatoHoraUi))
+            } catch (_: Exception) {
+                // si no parsea, lo dejamos como estaba
+            }
+        }
+
+        latitud = t.latitud
+        longitud = t.longitud
+        direccion = t.direccion
+
+        tvUbicacionSeleccionada.text = when {
+            !direccion.isNullOrBlank() -> direccion
+            latitud != null && longitud != null -> "$latitud, $longitud"
+            else -> "Sin ubicación"
+        }
+    }
+
+    private fun crearTareaServidor() {
+        limpiarErrores()
+
+        val titulo = etTituloTarea.text?.toString()?.trim().orEmpty()
+        val descripcion = etDescripcionTarea.text?.toString()?.trim().orEmpty()
+
+        if (titulo.isBlank()) {
+            tilTituloTarea.error = "El título es obligatorio"
+            return
+        }
+
+        val prioridadApi = when (actPrioridadTarea.text?.toString()?.trim()?.lowercase()) {
+            "baja" -> "baja"
+            "alta" -> "alta"
+            else -> "media"
+        }
+
+        val estadoApi = when (actEstadoTarea.text?.toString()?.trim()?.lowercase()) {
+            "en progreso", "en_progreso", "progreso" -> "en_progreso"
+            "hecha", "hecho", "completada", "completado" -> "hecha"
+            else -> "pendiente"
+        }
+
+        val fechaVencimientoApi = construirFechaVencimientoApi()
+
+        guardando = true
+        establecerEstadoUi(true)
+
+        lifecycleScope.launch {
+            try {
+                val resp = ClienteApi.api.crearTarea(
+                    PeticionTareaCrear(
+                        idUsuario = idUsuario,
+                        titulo = titulo,
+                        descripcion = if (descripcion.isBlank()) null else descripcion,
+                        prioridad = prioridadApi,
+                        estado = estadoApi,
+                        fechaVencimiento = fechaVencimientoApi,
+                        idEtiqueta = null,
+                        latitud = latitud,
+                        longitud = longitud,
+                        direccion = direccion
+                    )
+                )
+
+                if (!resp.isSuccessful) {
+                    Toast.makeText(this@NuevaTarea, "Error HTTP: ${resp.code()}", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
+                val cuerpo = resp.body()
+                if (cuerpo != null && cuerpo.ok) {
+                    Toast.makeText(this@NuevaTarea, "Tarea creada", Toast.LENGTH_SHORT).show()
+                    finish()
+                } else {
+                    Toast.makeText(this@NuevaTarea, cuerpo?.error ?: "No se pudo crear la tarea", Toast.LENGTH_SHORT).show()
+                }
+
+            } catch (_: IOException) {
+                Toast.makeText(this@NuevaTarea, "Error de conexión con el servidor", Toast.LENGTH_SHORT).show()
+            } catch (_: Exception) {
+                Toast.makeText(this@NuevaTarea, "Error inesperado", Toast.LENGTH_SHORT).show()
+            } finally {
+                guardando = false
+                establecerEstadoUi(false)
+            }
+        }
+    }
+
+    private fun actualizarTareaServidor() {
+        limpiarErrores()
+
+        val titulo = etTituloTarea.text?.toString()?.trim().orEmpty()
+        val descripcion = etDescripcionTarea.text?.toString()?.trim().orEmpty()
+
+        if (titulo.isBlank()) {
+            tilTituloTarea.error = "El título es obligatorio"
+            return
+        }
+
+        val prioridadApi = when (actPrioridadTarea.text?.toString()?.trim()?.lowercase()) {
+            "baja" -> "baja"
+            "alta" -> "alta"
+            else -> "media"
+        }
+
+        val estadoApi = when (actEstadoTarea.text?.toString()?.trim()?.lowercase()) {
+            "en progreso", "en_progreso", "progreso" -> "en_progreso"
+            "hecha", "hecho", "completada", "completado" -> "hecha"
+            else -> "pendiente"
+        }
+
+        val fechaVencimientoApi = construirFechaVencimientoApi()
+
+        guardando = true
+        establecerEstadoUi(true)
+
+        lifecycleScope.launch {
+            try {
+                val resp = ClienteApi.api.actualizarTarea(
+                    PeticionTareaActualizar(
+                        idUsuario = idUsuario,
+                        idTarea = idTarea,
+                        titulo = titulo,
+                        descripcion = if (descripcion.isBlank()) null else descripcion,
+                        prioridad = prioridadApi,
+                        estado = estadoApi,
+                        fechaVencimiento = fechaVencimientoApi,
+                        idEtiqueta = null,
+                        latitud = latitud,
+                        longitud = longitud,
+                        direccion = direccion
+                    )
+                )
+
+                if (!resp.isSuccessful) {
+                    Toast.makeText(this@NuevaTarea, "Error HTTP: ${resp.code()}", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
+                val cuerpo = resp.body()
+                if (cuerpo != null && cuerpo.ok) {
+                    Toast.makeText(this@NuevaTarea, "Cambios guardados", Toast.LENGTH_SHORT).show()
+                    finish()
+                } else {
+                    Toast.makeText(this@NuevaTarea, cuerpo?.error ?: "No se pudo actualizar", Toast.LENGTH_SHORT).show()
+                }
+
+            } catch (_: IOException) {
+                Toast.makeText(this@NuevaTarea, "Error de conexión con el servidor", Toast.LENGTH_SHORT).show()
+            } catch (_: Exception) {
+                Toast.makeText(this@NuevaTarea, "Error inesperado", Toast.LENGTH_SHORT).show()
+            } finally {
+                guardando = false
+                establecerEstadoUi(false)
+            }
+        }
+    }
+
+    private fun abrirSelectorFecha() {
+        val cal = Calendar.getInstance()
+        val dlg = DatePickerDialog(
+            this,
+            { _, year, month, day ->
+                val fecha = LocalDate.of(year, month + 1, day)
+                etFechaTarea.setText(fecha.format(formatoFechaUi))
+            },
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        )
+        dlg.show()
+    }
+
+    private fun abrirSelectorHora() {
+        val cal = Calendar.getInstance()
+        val dlg = TimePickerDialog(
+            this,
+            { _, hour, minute ->
+                val hora = LocalTime.of(hour, minute)
+                etHoraTarea.setText(hora.format(formatoHoraUi))
+            },
+            cal.get(Calendar.HOUR_OF_DAY),
+            cal.get(Calendar.MINUTE),
+            true
+        )
+        dlg.show()
+    }
+
+    private fun construirFechaVencimientoApi(): String? {
+        val fechaTxt = etFechaTarea.text?.toString()?.trim().orEmpty()
+        val horaTxt = etHoraTarea.text?.toString()?.trim().orEmpty()
+
+        if (fechaTxt.isBlank() || horaTxt.isBlank()) return null
+
+        return try {
+            val fecha = LocalDate.parse(fechaTxt, formatoFechaUi)
+            val hora = LocalTime.parse(horaTxt, formatoHoraUi)
+            LocalDateTime.of(fecha, hora).format(formatoFechaVencimientoApi)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun limpiarErrores() {
+        tilTituloTarea.error = null
+        tilDescripcionTarea.error = null
+        tilPrioridadTarea.error = null
+        tilEstadoTarea.error = null
+        tilFechaTarea.error = null
+        tilHoraTarea.error = null
+    }
+
+    private fun establecerEstadoUi(bloqueado: Boolean) {
+        btnGuardarTarea.isEnabled = !bloqueado
+        btnCancelarTarea.isEnabled = !bloqueado
+        btnCambiarEnMapa.isEnabled = !bloqueado
+
+        etTituloTarea.isEnabled = !bloqueado
+        etDescripcionTarea.isEnabled = !bloqueado
+        actPrioridadTarea.isEnabled = !bloqueado
+        actEstadoTarea.isEnabled = !bloqueado
+        etFechaTarea.isEnabled = !bloqueado
+        etHoraTarea.isEnabled = !bloqueado
+
+        // Esto mantiene el click aunque el EditText sea no focusable
+        etFechaTarea.isClickable = !bloqueado
+        etHoraTarea.isClickable = !bloqueado
+    }
+
+    private fun obtenerIdUsuario(): Int {
+        val extra = intent.getIntExtra(EXTRA_ID_USUARIO, 0)
+        if (extra > 0) return extra
+
+        val prefs = getSharedPreferences(PREFS_SESION, MODE_PRIVATE)
+        return prefs.getInt(CLAVE_ID_USUARIO, 0)
+    }
+
+    companion object {
+        const val EXTRA_ID_USUARIO = "id_usuario"
+        const val EXTRA_ID_TAREA = "id_tarea"
+
+        private const val PREFS_SESION = "sesion_taskmap"
+        private const val CLAVE_ID_USUARIO = "id_usuario"
+    }
 }

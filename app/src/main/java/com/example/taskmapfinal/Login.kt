@@ -95,6 +95,11 @@ class Login : AppCompatActivity() {
                     if (cuerpo != null && cuerpo.ok) {
                         Toast.makeText(this@Login, "Login correcto", Toast.LENGTH_SHORT).show()
                         startActivity(Intent(this@Login, MenuPrincipal::class.java))
+                        getSharedPreferences("sesion_taskmap", MODE_PRIVATE)
+                            .edit()
+                            .putInt("id_usuario", cuerpo.id_usuario ?: 0)
+                            .apply()
+
                         finish()
                     } else {
                         btnEntrar.isEnabled = true

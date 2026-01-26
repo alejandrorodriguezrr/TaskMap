@@ -23,18 +23,22 @@
 
         <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:fitsSystemWindows="true">
 
             <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/toolbarNuevaTarea"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 android:background="#2563EB"
-                android:title="Nueva tarea"
+                android:title="Detalle"
                 android:titleTextColor="@android:color/white"
                 app:titleCentered="true"
-                app:navigationIcon="@android:drawable/ic_media_previous" />
+                app:navigationIcon="@android:drawable/ic_media_previous"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp" />
         </com.google.android.material.appbar.AppBarLayout>
+
 
         <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent"

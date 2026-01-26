@@ -3,14 +3,21 @@ package com.example.taskmapfinal
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.taskmapfinal.api.ClienteApi
+import com.example.taskmapfinal.api.PeticionTareaActualizar
+import com.example.taskmapfinal.api.TareaApi
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
+import kotlinx.coroutines.launch
+import java.io.IOException
 
 class MenuPrincipal : AppCompatActivity() {
 
@@ -27,7 +34,9 @@ class MenuPrincipal : AppCompatActivity() {
     private lateinit var tvVacioProximas: TextView
 
     private lateinit var adaptador: AdaptadorTareasHome
+
     private val listaTareas: MutableList<Tarea> = mutableListOf()
+    private var idUsuario: Int = 0
 
     override fun onCreate(estadoInstancia: Bundle?) {
         super.onCreate(estadoInstancia)
@@ -38,9 +47,19 @@ class MenuPrincipal : AppCompatActivity() {
         configurarRecycler()
         iniciarListeners()
 
-        cargarDatosEjemplo()
-        actualizarResumen()
-        actualizarLista()
+        idUsuario = obtenerIdUsuario()
+        if (idUsuario <= 0) {
+            Toast.makeText(this, "No hay sesión iniciada", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
+        cargarTareasServidor()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (idUsuario > 0) cargarTareasServidor()
     }
 
     private fun iniciarVistas() {
@@ -60,7 +79,6 @@ class MenuPrincipal : AppCompatActivity() {
 
     private fun configurarToolbar() {
         setSupportActionBar(toolbarPrincipal)
-
         toolbarPrincipal.setNavigationOnClickListener {
             Toast.makeText(this, "Menú lateral pendiente", Toast.LENGTH_SHORT).show()
         }
@@ -69,24 +87,167 @@ class MenuPrincipal : AppCompatActivity() {
     private fun configurarRecycler() {
         adaptador = AdaptadorTareasHome(
             { tarea ->
-                abrirPantallaPorNombre("DetalleTarea", mapOf("id_tarea" to tarea.idTarea))
+                abrirPantallaPorNombre("DetalleTarea", mapOf(DetalleTarea.EXTRA_ID_TAREA to tarea.idTarea))
             },
             { tarea ->
-                tarea.estado = EstadoTarea.HECHA
-                actualizarResumen()
-                actualizarLista()
+                marcarComoHechaServidor(tarea.idTarea)
             }
         )
-
 
         rvProximasTareas.layoutManager = LinearLayoutManager(this)
         rvProximasTareas.adapter = adaptador
     }
 
     private fun iniciarListeners() {
-        btnVerTareas.setOnClickListener { abrirPantallaPorNombre("ListaTareas") }
+        btnVerTareas.setOnClickListener {
+            abrirPantallaPorNombre("ListaTareas", mapOf(ListaTareas.EXTRA_ID_USUARIO to idUsuario))
+        }
+
         btnVerMapa.setOnClickListener { abrirPantallaPorNombre("Mapa") }
-        btnNuevaTarea.setOnClickListener { abrirPantallaPorNombre("NuevaTarea") }
+
+        btnNuevaTarea.setOnClickListener {
+            val intent = Intent(this, NuevaTarea::class.java)
+            intent.putExtra(NuevaTarea.EXTRA_ID_USUARIO, idUsuario)
+            startActivity(intent)
+        }
+    }
+
+    private fun cargarTareasServidor() {
+        tvVacioProximas.visibility = View.VISIBLE
+        rvProximasTareas.visibility = View.GONE
+        tvVacioProximas.text = "Cargando..."
+
+        lifecycleScope.launch {
+            try {
+                val respuestaHttp = ClienteApi.api.listarTareas(idUsuario)
+
+                if (!respuestaHttp.isSuccessful) {
+                    tvVacioProximas.text = "Error HTTP: ${respuestaHttp.code()}"
+                    listaTareas.clear()
+                    actualizarResumen()
+                    adaptador.actualizar(emptyList())
+                    return@launch
+                }
+
+                val cuerpo = respuestaHttp.body()
+                if (cuerpo == null || !cuerpo.ok) {
+                    tvVacioProximas.text = cuerpo?.error ?: "No se pudieron cargar las tareas"
+                    listaTareas.clear()
+                    actualizarResumen()
+                    adaptador.actualizar(emptyList())
+                    return@launch
+                }
+
+                val listaApi = cuerpo.obtenerTareas()
+
+                listaTareas.clear()
+                listaTareas.addAll(listaApi.map { convertirTareaApi(it) })
+
+                actualizarResumen()
+                actualizarListaProximas()
+
+            } catch (_: IOException) {
+                tvVacioProximas.text = "Error de conexión con el servidor"
+                listaTareas.clear()
+                actualizarResumen()
+                adaptador.actualizar(emptyList())
+            } catch (_: Exception) {
+                tvVacioProximas.text = "Error inesperado"
+                listaTareas.clear()
+                actualizarResumen()
+                adaptador.actualizar(emptyList())
+            }
+        }
+    }
+
+    private fun actualizarResumen() {
+        val pendientes = listaTareas.count { it.estado == EstadoTarea.PENDIENTE }
+        val enProgreso = listaTareas.count { it.estado == EstadoTarea.EN_PROGRESO }
+        val hechas = listaTareas.count { it.estado == EstadoTarea.HECHA }
+
+        chipPendientes.text = pendientes.toString()
+        chipEnProgreso.text = enProgreso.toString()
+        chipHechas.text = hechas.toString()
+    }
+
+    private fun actualizarListaProximas() {
+        val proximas = listaTareas
+            .filter { it.estado != EstadoTarea.HECHA }
+            .take(5)
+
+        if (proximas.isEmpty()) {
+            tvVacioProximas.visibility = View.VISIBLE
+            rvProximasTareas.visibility = View.GONE
+            tvVacioProximas.text = "No hay tareas próximas"
+        } else {
+            tvVacioProximas.visibility = View.GONE
+            rvProximasTareas.visibility = View.VISIBLE
+        }
+
+        adaptador.actualizar(proximas)
+    }
+
+    private fun marcarComoHechaServidor(idTarea: Long) {
+        lifecycleScope.launch {
+            try {
+                val respuestaHttp = ClienteApi.api.actualizarTarea(
+                    PeticionTareaActualizar(
+                        idUsuario = idUsuario,
+                        idTarea = idTarea,
+                        estado = "hecha"
+                    )
+                )
+
+                if (!respuestaHttp.isSuccessful) {
+                    Toast.makeText(this@MenuPrincipal, "Error HTTP: ${respuestaHttp.code()}", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
+                val cuerpo = respuestaHttp.body()
+                if (cuerpo != null && cuerpo.ok) {
+                    Toast.makeText(this@MenuPrincipal, "Marcada como hecha", Toast.LENGTH_SHORT).show()
+                    cargarTareasServidor()
+                } else {
+                    Toast.makeText(this@MenuPrincipal, cuerpo?.error ?: "No se pudo actualizar", Toast.LENGTH_SHORT).show()
+                }
+
+            } catch (_: IOException) {
+                Toast.makeText(this@MenuPrincipal, "Error de conexión con el servidor", Toast.LENGTH_SHORT).show()
+            } catch (_: Exception) {
+                Toast.makeText(this@MenuPrincipal, "Error inesperado", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun convertirTareaApi(t: TareaApi): Tarea {
+        val id = (t.idTarea ?: 0L)
+        val titulo = t.titulo?.trim().takeUnless { it.isNullOrBlank() } ?: "Sin título"
+        val descripcion = t.descripcion
+
+        val estado = when ((t.estado ?: "").trim().lowercase()) {
+            "pendiente", "pendientes" -> EstadoTarea.PENDIENTE
+            "en_progreso", "en progreso", "progreso" -> EstadoTarea.EN_PROGRESO
+            "hecha", "hecho", "completada", "completado" -> EstadoTarea.HECHA
+            else -> EstadoTarea.PENDIENTE
+        }
+
+        val prioridad = when ((t.prioridad ?: "").trim().lowercase()) {
+            "baja" -> Prioridad.BAJA
+            "media" -> Prioridad.MEDIA
+            "alta" -> Prioridad.ALTA
+            else -> Prioridad.MEDIA
+        }
+
+        val vencimientoTexto = t.fechaVencimiento ?: ""
+
+        return Tarea(
+            idTarea = id,
+            titulo = titulo,
+            descripcion = descripcion,
+            prioridad = prioridad,
+            estado = estado,
+            vencimientoTexto = vencimientoTexto
+        )
     }
 
     private fun abrirPantallaPorNombre(nombreClaseSimple: String, extras: Map<String, Any?> = emptyMap()) {
@@ -104,56 +265,13 @@ class MenuPrincipal : AppCompatActivity() {
 
         try {
             startActivity(intent)
-        } catch (e: ActivityNotFoundException) {
+        } catch (_: ActivityNotFoundException) {
             Toast.makeText(this, "No existe la pantalla: $nombreClaseSimple", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun actualizarResumen() {
-        val pendientes = listaTareas.count { it.estado == EstadoTarea.PENDIENTE }
-        val enProgreso = listaTareas.count { it.estado == EstadoTarea.EN_PROGRESO }
-        val hechas = listaTareas.count { it.estado == EstadoTarea.HECHA }
-
-        chipPendientes.text = pendientes.toString()
-        chipEnProgreso.text = enProgreso.toString()
-        chipHechas.text = hechas.toString()
-    }
-
-    private fun actualizarLista() {
-        if (listaTareas.isEmpty()) {
-            tvVacioProximas.visibility = android.view.View.VISIBLE
-            rvProximasTareas.visibility = android.view.View.GONE
-        } else {
-            tvVacioProximas.visibility = android.view.View.GONE
-            rvProximasTareas.visibility = android.view.View.VISIBLE
-        }
-
-        adaptador.actualizar(listaTareas)
-    }
-
-    private fun cargarDatosEjemplo() {
-        listaTareas.clear()
-
-        listaTareas.add(
-            Tarea(
-                idTarea = 1L,
-                titulo = "Comprar pan",
-                descripcion = "Ir a la panadería",
-                prioridad = Prioridad.MEDIA,
-                estado = EstadoTarea.PENDIENTE,
-                vencimientoTexto = "Hoy 18:30"
-            )
-        )
-
-        listaTareas.add(
-            Tarea(
-                idTarea = 2L,
-                titulo = "Entregar trabajo",
-                descripcion = "Subir el PDF final",
-                prioridad = Prioridad.ALTA,
-                estado = EstadoTarea.EN_PROGRESO,
-                vencimientoTexto = "Hoy 20:00"
-            )
-        )
+    private fun obtenerIdUsuario(): Int {
+        val prefs = getSharedPreferences("sesion_taskmap", MODE_PRIVATE)
+        return prefs.getInt("id_usuario", 0)
     }
 }

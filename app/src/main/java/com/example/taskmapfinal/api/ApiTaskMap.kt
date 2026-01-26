@@ -39,15 +39,26 @@ interface ApiTaskMap {
     suspend fun crearTarea(@Body solicitud: PeticionTareaCrear): Response<RespuestaTareaCrear>
 
     @POST("tareas_actualizar.php")
-    suspend fun actualizarTarea(@Body solicitud: PeticionTareaActualizar): Response<RespuestaTareaActualizar>
+    suspend fun actualizarTarea(
+        @Body peticion: PeticionTareaActualizar
+    ): retrofit2.Response<RespuestaTareaActualizar>
 
     @POST("tareas_borrar.php")
-    suspend fun borrarTarea(@Body solicitud: PeticionTareaBorrar): Response<RespuestaTareaBorrar>
+    suspend fun borrarTarea(
+        @Body peticion: PeticionTareaBorrar
+    ): retrofit2.Response<RespuestaTareaBorrar>
 
     @GET("etiquetas_listar.php")
     suspend fun listarEtiquetas(@Query("id_usuario") idUsuario: Int): Response<RespuestaEtiquetasListar>
 
     @POST("etiquetas_crear.php")
     suspend fun crearEtiqueta(@Body solicitud: PeticionEtiquetaCrear): Response<RespuestaEtiquetaCrear>
+
+    @GET("tarea_detalle.php")
+    suspend fun obtenerDetalleTarea(
+        @Query("id_usuario") idUsuario: Int,
+        @Query("id_tarea") idTarea: Long
+    ): retrofit2.Response<com.example.taskmapfinal.api.RespuestaTareaDetalle>
+
 
 }

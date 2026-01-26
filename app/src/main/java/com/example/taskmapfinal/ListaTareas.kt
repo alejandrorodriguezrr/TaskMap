@@ -67,6 +67,11 @@ class ListaTareas : AppCompatActivity() {
         cargarTareasServidor()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (idUsuario > 0) cargarTareasServidor()
+    }
+
     private fun iniciarVistas() {
         toolbarListaTareas = findViewById(R.id.toolbarListaTareas)
         etBuscar = findViewById(R.id.etBuscar)
@@ -96,7 +101,9 @@ class ListaTareas : AppCompatActivity() {
     private fun configurarRecycler() {
         adaptador = AdaptadorListaTareas(
             onClick = { tarea ->
-                Toast.makeText(this, "Abrir detalle: ${tarea.titulo}", Toast.LENGTH_SHORT).show()
+                val intent = Intent(this, DetalleTarea::class.java)
+                intent.putExtra(DetalleTarea.EXTRA_ID_TAREA, tarea.idTarea)
+                startActivity(intent)
             }
         )
         rvTareas.layoutManager = LinearLayoutManager(this)
@@ -127,8 +134,11 @@ class ListaTareas : AppCompatActivity() {
         })
 
         fabNuevaTareaLista.setOnClickListener {
-            abrirPantallaPorNombre("NuevaTarea")
+            val intent = Intent(this, NuevaTarea::class.java)
+            intent.putExtra(NuevaTarea.EXTRA_ID_USUARIO, idUsuario)
+            startActivity(intent)
         }
+
 
         fabNuevaTareaLista.setOnLongClickListener {
             abrirFiltrosOrdenar()
@@ -145,21 +155,7 @@ class ListaTareas : AppCompatActivity() {
             try {
                 val respuestaHttp = ClienteApi.api.listarTareas(idUsuario)
 
-                if (respuestaHttp.isSuccessful) {
-                    val cuerpo = respuestaHttp.body()
-
-                    if (cuerpo != null && cuerpo.ok) {
-                        val listaApi = cuerpo.tareas ?: emptyList()
-
-                        tareasCompletas.clear()
-                        tareasCompletas.addAll(listaApi.map { convertirTareaApi(it) })
-
-                        aplicarFiltros()
-                    } else {
-                        val mensaje = cuerpo?.error ?: "No se pudieron cargar las tareas"
-                        mostrarErrorLista(mensaje)
-                    }
-                } else {
+                if (!respuestaHttp.isSuccessful) {
                     val mensaje = when (respuestaHttp.code()) {
                         400 -> "Solicitud incorrecta (id_usuario inválido)"
                         404 -> "No se encuentra tareas_listar.php en el servidor"
@@ -167,11 +163,25 @@ class ListaTareas : AppCompatActivity() {
                         else -> "Error HTTP: ${respuestaHttp.code()}"
                     }
                     mostrarErrorLista(mensaje)
+                    return@launch
                 }
 
-            } catch (e: IOException) {
+                val cuerpo = respuestaHttp.body()
+                if (cuerpo == null || !cuerpo.ok) {
+                    mostrarErrorLista(cuerpo?.error ?: "No se pudieron cargar las tareas")
+                    return@launch
+                }
+
+                val listaApi = cuerpo.obtenerTareas()
+
+                tareasCompletas.clear()
+                tareasCompletas.addAll(listaApi.map { convertirTareaApi(it) })
+
+                aplicarFiltros()
+
+            } catch (_: IOException) {
                 mostrarErrorLista("Error de conexión con el servidor")
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 mostrarErrorLista("Error inesperado")
             }
         }
@@ -185,9 +195,8 @@ class ListaTareas : AppCompatActivity() {
         tvVacioLista.text = mensaje
     }
 
-    private fun convertirTareaApi(t: com.example.taskmapfinal.api.TareaApi): Tarea {
-
-        val id = (t.idTarea ?: 0).toLong()
+    private fun convertirTareaApi(t: TareaApi): Tarea {
+        val id = (t.idTarea ?: 0L)
         val titulo = t.titulo?.trim().takeUnless { it.isNullOrBlank() } ?: "Sin título"
         val descripcion = t.descripcion
 
@@ -207,7 +216,6 @@ class ListaTareas : AppCompatActivity() {
 
         val fechaTexto = t.fechaVencimiento ?: t.fechaCreacion ?: ""
 
-        // IMPORTANTE: parámetros posicionales (como en tus datos de ejemplo)
         return Tarea(
             id,
             titulo,
@@ -217,7 +225,6 @@ class ListaTareas : AppCompatActivity() {
             fechaTexto
         )
     }
-
 
     private fun aplicarFiltros() {
         var filtradas = tareasCompletas
@@ -294,17 +301,15 @@ class ListaTareas : AppCompatActivity() {
 
         try {
             startActivity(intent)
-        } catch (e: ActivityNotFoundException) {
+        } catch (_: ActivityNotFoundException) {
             Toast.makeText(this, "No existe la pantalla: $nombreClaseSimple", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun obtenerIdUsuario(): Int {
-        // 1) si lo pasas por Intent (recomendado)
         val extra = intent.getIntExtra(EXTRA_ID_USUARIO, 0)
         if (extra > 0) return extra
 
-        // 2) si lo guardas en SharedPreferences
         val prefs = getSharedPreferences(PREFS_SESION, MODE_PRIVATE)
         return prefs.getInt(CLAVE_ID_USUARIO, 0)
     }
@@ -317,10 +322,4 @@ class ListaTareas : AppCompatActivity() {
         private const val PREFS_SESION = "sesion_taskmap"
         private const val CLAVE_ID_USUARIO = "id_usuario"
     }
-
-    override fun onResume() {
-        super.onResume()
-        if (idUsuario > 0) cargarTareasServidor()
-    }
-
 }

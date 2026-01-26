@@ -10,7 +10,7 @@ data class PeticionRegistro(
 
 data class RespuestaRegistro(
     val ok: Boolean,
-    val id_usuario: Int? = null,
+    @SerializedName("id_usuario") val id_usuario: Int? = null,
     val error: String? = null
 )
 
@@ -21,10 +21,9 @@ data class SolicitudLogin(
 
 data class RespuestaLogin(
     val ok: Boolean,
-    val id_usuario: Int? = null,
+    @SerializedName("id_usuario") val id_usuario: Int? = null,
     val error: String? = null
 )
-
 
 data class RespuestaTareasListar(
     val ok: Boolean,
@@ -38,7 +37,6 @@ data class RespuestaTareasListar(
 data class DataTareas(
     val tareas: List<TareaApi>? = null
 )
-
 
 data class TareaApi(
     @SerializedName("id_tarea") val idTarea: Long? = null,
@@ -54,7 +52,6 @@ data class TareaApi(
     val direccion: String? = null,
     @SerializedName("fecha_creacion") val fechaCreacion: String? = null
 )
-
 
 data class PeticionTareaCrear(
     @SerializedName("id_usuario") val idUsuario: Int,
@@ -130,6 +127,8 @@ data class RespuestaEtiquetaCrear(
     val error: String? = null
 )
 
-
-
-
+data class RespuestaTareaDetalle(
+    val ok: Boolean,
+    val tarea: TareaApi? = null,
+    val error: String? = null
+)
