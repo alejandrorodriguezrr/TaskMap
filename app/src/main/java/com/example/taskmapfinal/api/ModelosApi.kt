@@ -132,3 +132,4 @@ data class RespuestaTareaDetalle(
     val tarea: TareaApi? = null,
     val error: String? = null
 )
+

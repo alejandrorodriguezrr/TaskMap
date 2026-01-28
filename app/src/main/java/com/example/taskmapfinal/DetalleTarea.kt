@@ -30,7 +30,6 @@ class DetalleTarea : AppCompatActivity() {
     private lateinit var tvDescripcionDetalle: TextView
     private lateinit var tvVencimientoDetalle: TextView
     private lateinit var tvUbicacionDetalle: TextView
-
     private lateinit var btnVerMapaDetalle: MaterialButton
     private lateinit var btnMarcarCompletada: MaterialButton
     private lateinit var btnEditarTarea: MaterialButton
