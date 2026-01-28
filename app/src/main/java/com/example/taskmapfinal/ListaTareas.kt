@@ -22,6 +22,9 @@ import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.launch
 import java.io.IOException
 import com.example.taskmapfinal.api.TareaApi
+import com.example.taskmapfinal.bd.BaseDatosTaskMap
+import com.example.taskmapfinal.bd.DaoTareas
+import com.example.taskmapfinal.bd.EntidadTarea
 
 class ListaTareas : AppCompatActivity() {
 
@@ -38,6 +41,7 @@ class ListaTareas : AppCompatActivity() {
 
     private lateinit var adaptador: AdaptadorListaTareas
 
+    private lateinit var daoTareas: DaoTareas
     private val tareasCompletas: MutableList<Tarea> = mutableListOf()
     private var estadoSeleccionado: EstadoTarea = EstadoTarea.PENDIENTE
     private var textoBusqueda: String = ""
@@ -63,8 +67,11 @@ class ListaTareas : AppCompatActivity() {
             finish()
             return
         }
+        daoTareas = BaseDatosTaskMap.obtenerInstancia(applicationContext).daoTareas()
 
+        cargarTareasLocal()
         cargarTareasServidor()
+
     }
 
     override fun onResume() {
@@ -172,12 +179,30 @@ class ListaTareas : AppCompatActivity() {
                     return@launch
                 }
 
-                val listaApi = cuerpo.obtenerTareas()
+                val listaApi = cuerpo.tareas ?: emptyList()
 
                 tareasCompletas.clear()
                 tareasCompletas.addAll(listaApi.map { convertirTareaApi(it) })
-
                 aplicarFiltros()
+
+                val paraGuardar = listaApi.map { t ->
+                    EntidadTarea(
+                        idTarea = t.idTarea ?: 0L,
+                        idUsuario = idUsuario,
+                        titulo = t.titulo?.trim().takeUnless { it.isNullOrBlank() } ?: "Sin título",
+                        descripcion = t.descripcion,
+                        prioridad = (t.prioridad ?: "media"),
+                        estado = (t.estado ?: "pendiente"),
+                        fechaVencimiento = t.fechaVencimiento,
+                        latitud = t.latitud,
+                        longitud = t.longitud,
+                        direccion = t.direccion,
+                        fechaCreacion = t.fechaCreacion
+                    )
+                }
+
+                daoTareas.insertarTodas(paraGuardar)
+
 
             } catch (_: IOException) {
                 mostrarErrorLista("Error de conexión con el servidor")
@@ -294,6 +319,41 @@ class ListaTareas : AppCompatActivity() {
             aplicarFiltros()
         }
     }
+
+    private fun cargarTareasLocal() {
+        lifecycleScope.launch {
+            val locales = daoTareas.obtenerTareasUsuario(idUsuario)
+
+            tareasCompletas.clear()
+            tareasCompletas.addAll(locales.map { entidad ->
+                val estado = when (entidad.estado.lowercase()) {
+                    "pendiente" -> EstadoTarea.PENDIENTE
+                    "en_progreso" -> EstadoTarea.EN_PROGRESO
+                    "hecha" -> EstadoTarea.HECHA
+                    else -> EstadoTarea.PENDIENTE
+                }
+
+                val prioridad = when (entidad.prioridad.lowercase()) {
+                    "baja" -> Prioridad.BAJA
+                    "media" -> Prioridad.MEDIA
+                    "alta" -> Prioridad.ALTA
+                    else -> Prioridad.MEDIA
+                }
+
+                Tarea(
+                    idTarea = entidad.idTarea,
+                    titulo = entidad.titulo,
+                    descripcion = entidad.descripcion,
+                    prioridad = prioridad,
+                    estado = estado,
+                    vencimientoTexto = entidad.fechaVencimiento ?: entidad.fechaCreacion ?: ""
+                )
+            })
+
+            aplicarFiltros()
+        }
+    }
+
 
     private fun abrirPantallaPorNombre(nombreClaseSimple: String) {
         val nombreCompleto = "$packageName.$nombreClaseSimple"
