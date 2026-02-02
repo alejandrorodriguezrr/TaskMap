@@ -12,6 +12,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TaskMapFinal"
         android:usesCleartextTraffic="true"
+        android:windowSoftInputMode="adjustResize"
         android:networkSecurityConfig="@xml/network_security_config">
 
 

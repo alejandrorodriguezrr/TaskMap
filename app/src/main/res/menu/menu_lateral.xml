@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_inicio"
+            android:title="Inicio" />
+
+        <item
+            android:id="@+id/nav_tareas"
+            android:title="Tareas" />
+
+        <item
+            android:id="@+id/nav_mapa"
+            android:title="Mapa" />
+
+        <item
+            android:id="@+id/nav_nueva_tarea"
+            android:title="Nueva tarea" />
+    </group>
+
+    <item android:title="Otros">
+        <menu>
+            <item
+                android:id="@+id/nav_ajustes"
+                android:title="Ajustes" />
+        </menu>
+    </item>
+
+    <item android:title="Cuenta">
+        <menu>
+            <item
+                android:id="@+id/nav_cerrar_sesion"
+                android:title="Cerrar sesión" />
+        </menu>
+    </item>
+
+</menu>

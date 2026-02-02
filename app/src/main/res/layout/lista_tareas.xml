@@ -31,12 +31,13 @@
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 android:background="#2563EB"
-                android:title="Detalle"
+                android:title="Tareas"
                 android:titleTextColor="@android:color/white"
                 app:titleCentered="true"
-                app:navigationIcon="@android:drawable/ic_media_previous"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp" />
+                app:navigationIcon="@drawable/ic_flecha_atras_28"
+                app:navigationIconTint="@android:color/white"
+                app:contentInsetStartWithNavigation="16dp" />
+
         </com.google.android.material.appbar.AppBarLayout>
 
 

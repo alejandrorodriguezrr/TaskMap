@@ -1,9 +1,27 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+
     <style name="Base.Theme.TaskMapFinal" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+
+        <!-- Colores de marca (evita el morado por defecto) -->
+        <item name="colorPrimary">@color/azul_taskmap</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+
+        <item name="colorSecondary">@color/azul_taskmap</item>
+        <item name="colorOnSecondary">@android:color/white</item>
+
+        <!-- Este es el que suele pintar el “seleccionado” del menú en morado -->
+        <item name="colorSecondaryContainer">@color/azul_taskmap_claro</item>
+        <item name="colorOnSecondaryContainer">@color/negro_taskmap</item>
+
+        <!-- Barras del sistema (para que arriba sea azul, no blanco) -->
+        <item name="android:statusBarColor">@color/azul_taskmap</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="android:windowLightNavigationBar">false</item>
+
     </style>
 
     <style name="Theme.TaskMapFinal" parent="Base.Theme.TaskMapFinal" />
+
 </resources>

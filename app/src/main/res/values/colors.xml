@@ -8,4 +8,7 @@
     <color name="prioridad_baja">#D1FAE5</color>
     <color name="prioridad_media">#E0EAFF</color>
     <color name="prioridad_alta">#FEE2E2</color>
+    <color name="azul_taskmap">#2563EB</color>
+    <color name="azul_taskmap_claro">#E0EAFF</color>
+    <color name="negro_taskmap">#111827</color>
 </resources>

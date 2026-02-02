@@ -2,11 +2,15 @@ package com.example.taskmapfinal
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -16,10 +20,16 @@ import com.example.taskmapfinal.api.TareaApi
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
+import com.google.android.material.navigation.NavigationView
 import kotlinx.coroutines.launch
 import java.io.IOException
 
+
 class MenuPrincipal : AppCompatActivity() {
+
+    private lateinit var drawerLayout: DrawerLayout
+    private lateinit var navigationView: NavigationView
+    private lateinit var toggleMenu: ActionBarDrawerToggle
 
     private lateinit var toolbarPrincipal: MaterialToolbar
     private lateinit var btnVerTareas: MaterialButton
@@ -40,10 +50,15 @@ class MenuPrincipal : AppCompatActivity() {
 
     override fun onCreate(estadoInstancia: Bundle?) {
         super.onCreate(estadoInstancia)
+
+        // Importante: evita que el contenido se meta debajo de la status bar
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        window.statusBarColor = Color.parseColor("#2563EB")
+
         setContentView(R.layout.menu_principal)
 
         iniciarVistas()
-        configurarToolbar()
+        configurarToolbarYDrawer()
         configurarRecycler()
         iniciarListeners()
 
@@ -63,6 +78,9 @@ class MenuPrincipal : AppCompatActivity() {
     }
 
     private fun iniciarVistas() {
+        drawerLayout = findViewById(R.id.drawerLayout)
+        navigationView = findViewById(R.id.navigationView)
+
         toolbarPrincipal = findViewById(R.id.toolbarPrincipal)
 
         btnVerTareas = findViewById(R.id.btnVerTareas)
@@ -77,10 +95,50 @@ class MenuPrincipal : AppCompatActivity() {
         tvVacioProximas = findViewById(R.id.tvVacioProximas)
     }
 
-    private fun configurarToolbar() {
+    private fun configurarToolbarYDrawer() {
         setSupportActionBar(toolbarPrincipal)
-        toolbarPrincipal.setNavigationOnClickListener {
-            Toast.makeText(this, "Menú lateral pendiente", Toast.LENGTH_SHORT).show()
+
+        toggleMenu = ActionBarDrawerToggle(
+            this,
+            drawerLayout,
+            toolbarPrincipal,
+            R.string.abrir_menu,
+            R.string.cerrar_menu
+        )
+
+        drawerLayout.addDrawerListener(toggleMenu)
+        toggleMenu.syncState()
+
+        navigationView.setNavigationItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_inicio -> {
+                    drawerLayout.closeDrawers()
+                    true
+                }
+                R.id.nav_tareas -> {
+                    abrirPantallaPorNombre("ListaTareas", mapOf(ListaTareas.EXTRA_ID_USUARIO to idUsuario))
+                    drawerLayout.closeDrawers()
+                    true
+                }
+                R.id.nav_mapa -> {
+                    abrirPantallaPorNombre("Mapa")
+                    drawerLayout.closeDrawers()
+                    true
+                }
+                R.id.nav_nueva_tarea -> {
+                    val intent = Intent(this, NuevaTarea::class.java)
+                    intent.putExtra(NuevaTarea.EXTRA_ID_USUARIO, idUsuario)
+                    startActivity(intent)
+                    drawerLayout.closeDrawers()
+                    true
+                }
+                R.id.nav_cerrar_sesion -> {
+                    cerrarSesion()
+                    drawerLayout.closeDrawers()
+                    true
+                }
+                else -> false
+            }
         }
     }
 
@@ -273,5 +331,13 @@ class MenuPrincipal : AppCompatActivity() {
     private fun obtenerIdUsuario(): Int {
         val prefs = getSharedPreferences("sesion_taskmap", MODE_PRIVATE)
         return prefs.getInt("id_usuario", 0)
+    }
+
+    private fun cerrarSesion() {
+        val prefs = getSharedPreferences("sesion_taskmap", MODE_PRIVATE)
+        prefs.edit().clear().apply()
+
+        startActivity(Intent(this, Login::class.java))
+        finish()
     }
 }
