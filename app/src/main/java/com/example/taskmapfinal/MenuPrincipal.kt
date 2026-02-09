@@ -9,7 +9,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -97,6 +100,12 @@ class MenuPrincipal : AppCompatActivity() {
 
     private fun configurarToolbarYDrawer() {
         setSupportActionBar(toolbarPrincipal)
+
+        ViewCompat.setOnApplyWindowInsetsListener(toolbarPrincipal) { vista, insets ->
+            val top = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            vista.updatePadding(top = top)
+            insets
+        }
 
         toggleMenu = ActionBarDrawerToggle(
             this,

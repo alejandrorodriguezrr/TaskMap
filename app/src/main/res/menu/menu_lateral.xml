@@ -4,26 +4,31 @@
     <group android:checkableBehavior="single">
         <item
             android:id="@+id/nav_inicio"
-            android:title="Inicio" />
+            android:title="Inicio"
+            android:icon="@android:drawable/ic_menu_view" />
 
         <item
             android:id="@+id/nav_tareas"
-            android:title="Tareas" />
+            android:title="Tareas"
+            android:icon="@android:drawable/ic_menu_agenda" />
 
         <item
             android:id="@+id/nav_mapa"
-            android:title="Mapa" />
+            android:title="Mapa"
+            android:icon="@android:drawable/ic_dialog_map" />
 
         <item
             android:id="@+id/nav_nueva_tarea"
-            android:title="Nueva tarea" />
+            android:title="Nueva tarea"
+            android:icon="@android:drawable/ic_input_add" />
     </group>
 
     <item android:title="Otros">
         <menu>
             <item
                 android:id="@+id/nav_ajustes"
-                android:title="Ajustes" />
+                android:title="Ajustes"
+                android:icon="@android:drawable/ic_menu_manage" />
         </menu>
     </item>
 
@@ -31,7 +36,8 @@
         <menu>
             <item
                 android:id="@+id/nav_cerrar_sesion"
-                android:title="Cerrar sesión" />
+                android:title="Cerrar sesión"
+                android:icon="@android:drawable/ic_lock_power_off" />
         </menu>
     </item>
 

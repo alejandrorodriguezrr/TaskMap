@@ -33,11 +33,11 @@
             <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/toolbarPrincipal"
                 android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
+                android:layout_height="wrap_content"
+                android:minHeight="?attr/actionBarSize"
                 android:background="#2563EB"
                 android:title="Task Map"
                 android:titleTextColor="@android:color/white"
-                app:navigationIcon="@android:drawable/ic_menu_sort_by_size"
                 app:titleCentered="true"/>
         </com.google.android.material.appbar.AppBarLayout>
 
