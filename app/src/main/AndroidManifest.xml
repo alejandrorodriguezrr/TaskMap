@@ -17,16 +17,16 @@
 
 
         <activity
-            android:name=".Login"
+            android:name=".Login.Login"
             android:exported="false" />
 
-        <activity android:name=".Registro" />
+        <activity android:name=".Login.Registro" />
         <activity android:name=".MenuPrincipal" />
-        <activity android:name=".ListaTareas" />
-        <activity android:name=".DetalleTarea" />
-        <activity android:name=".NuevaTarea" />
+        <activity android:name=".Tareas.ListaTareas" />
+        <activity android:name=".Tareas.DetalleTarea" />
+        <activity android:name=".Tareas.NuevaTarea" />
         <activity android:name=".Mapa" />
-        <activity android:name=".FiltrosOrdenar" />
+        <activity android:name=".Tareas.FiltrosOrdenar" />
 
         <activity
             android:name=".MainActivity"
@@ -44,6 +44,7 @@
 
     </application>
     <uses-permission android:name="android.permission.INTERNET"/>
-
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
 </manifest>

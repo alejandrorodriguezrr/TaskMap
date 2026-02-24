@@ -1,4 +1,4 @@
-package com.example.taskmapfinal
+package com.example.taskmapfinal.Login
 
 import android.content.Intent
 import android.os.Bundle
@@ -9,6 +9,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.example.taskmapfinal.MenuPrincipal
+import com.example.taskmapfinal.R
+import com.example.taskmapfinal.Login.Registro
 import com.example.taskmapfinal.api.ClienteApi
 import com.example.taskmapfinal.api.SolicitudLogin
 import com.google.android.material.button.MaterialButton

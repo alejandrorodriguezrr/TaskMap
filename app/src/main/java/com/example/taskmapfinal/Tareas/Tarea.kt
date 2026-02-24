@@ -1,4 +1,6 @@
-package com.example.taskmapfinal
+package com.example.taskmapfinal.Tareas
+
+import com.example.taskmapfinal.Prioridad
 
 data class Tarea(
     val idTarea: Long,

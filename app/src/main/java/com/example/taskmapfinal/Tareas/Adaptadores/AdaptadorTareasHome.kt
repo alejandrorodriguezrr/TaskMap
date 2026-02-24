@@ -1,10 +1,13 @@
-package com.example.taskmapfinal
+package com.example.taskmapfinal.Tareas.Adaptadores
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.example.taskmapfinal.R
+import com.example.taskmapfinal.Tareas.EstadoTarea
+import com.example.taskmapfinal.Tareas.Tarea
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 

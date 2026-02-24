@@ -1,4 +1,4 @@
-package com.example.taskmapfinal
+package com.example.taskmapfinal.Tareas
 
 import android.content.Intent
 import android.net.Uri
@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.example.taskmapfinal.R
 import com.example.taskmapfinal.api.ClienteApi
 import com.example.taskmapfinal.api.PeticionTareaActualizar
 import com.example.taskmapfinal.api.PeticionTareaBorrar
@@ -64,6 +65,13 @@ class DetalleTarea : AppCompatActivity() {
         cargarDetalleServidor()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (idUsuario > 0 && idTarea > 0L) {
+            cargarDetalleServidor()
+        }
+    }
+
     private fun enlazarVistas() {
         toolbarDetalle = findViewById(R.id.toolbarDetalle)
 
@@ -99,6 +107,7 @@ class DetalleTarea : AppCompatActivity() {
         btnEditarTarea.setOnClickListener {
             val intent = Intent(this, NuevaTarea::class.java)
             intent.putExtra(NuevaTarea.EXTRA_ID_TAREA, idTarea)
+            intent.putExtra(NuevaTarea.EXTRA_ID_USUARIO, idUsuario)
             startActivity(intent)
         }
     }
@@ -135,13 +144,12 @@ class DetalleTarea : AppCompatActivity() {
 
                 val estado = (t.estado ?: "pendiente").trim().lowercase()
                 chipEstadoDetalle.text = when (estado) {
-                    "en_progreso" -> "En progreso"
-                    "hecha" -> "Hecha"
+                    "en_progreso", "en progreso", "progreso" -> "En progreso"
+                    "hecha", "hecho", "completada", "completado" -> "Hecha"
                     else -> "Pendiente"
                 }
 
-                val venc = t.fechaVencimiento
-                tvVencimientoDetalle.text = formatearFechaVencimiento(venc)
+                tvVencimientoDetalle.text = formatearFechaVencimiento(t.fechaVencimiento)
 
                 latitudActual = t.latitud
                 longitudActual = t.longitud
@@ -268,7 +276,6 @@ class DetalleTarea : AppCompatActivity() {
     private fun formatearFechaVencimiento(valor: String?): String {
         if (valor.isNullOrBlank()) return "Sin vencimiento"
         return try {
-            // MySQL suele venir "yyyy-MM-dd HH:mm:ss"
             val dt = LocalDateTime.parse(valor.replace(" ", "T"))
             dt.format(formatoSalidaUi)
         } catch (_: Exception) {

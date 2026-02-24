@@ -1,4 +1,4 @@
-package com.example.taskmapfinal
+package com.example.taskmapfinal.Tareas
 
 enum class EstadoTarea {
     PENDIENTE,

@@ -8,6 +8,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.example.taskmapfinal.Tareas.DetalleTarea
 import com.example.taskmapfinal.api.ClienteApi
 import com.example.taskmapfinal.api.TareaApi
 import com.google.android.gms.maps.CameraUpdateFactory

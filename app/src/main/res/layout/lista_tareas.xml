@@ -64,7 +64,11 @@
                     app:boxCornerRadiusTopStart="16dp"
                     app:boxCornerRadiusTopEnd="16dp"
                     app:boxCornerRadiusBottomStart="16dp"
-                    app:boxCornerRadiusBottomEnd="16dp">
+                    app:boxCornerRadiusBottomEnd="16dp"
+                    app:endIconMode="custom"
+                    app:endIconDrawable="@android:drawable/ic_btn_speak_now"
+                    app:endIconContentDescription="Dictar búsqueda"
+                    app:endIconTint="#2563EB">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etBuscar"
@@ -73,6 +77,7 @@
                         android:inputType="text"
                         android:singleLine="true" />
                 </com.google.android.material.textfield.TextInputLayout>
+
 
                 <com.google.android.material.button.MaterialButtonToggleGroup
                     android:id="@+id/grupoEstados"

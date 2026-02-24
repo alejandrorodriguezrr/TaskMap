@@ -1,35 +1,49 @@
-package com.example.taskmapfinal
+package com.example.taskmapfinal.Tareas
 
-import android.app.Activity
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.speech.RecognizerIntent
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.taskmapfinal.Tareas.NuevaTarea
+import com.example.taskmapfinal.Prioridad
+import com.example.taskmapfinal.R
+import com.example.taskmapfinal.Tareas.Adaptadores.AdaptadorListaTareas
+import com.example.taskmapfinal.Tareas.Tarea
 import com.example.taskmapfinal.api.ClienteApi
+import com.example.taskmapfinal.api.TareaApi
+import com.example.taskmapfinal.bd.BaseDatosTaskMap
+import com.example.taskmapfinal.bd.DaoTareas
+import com.example.taskmapfinal.bd.EntidadTarea
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.launch
 import java.io.IOException
-import com.example.taskmapfinal.api.TareaApi
-import com.example.taskmapfinal.bd.BaseDatosTaskMap
-import com.example.taskmapfinal.bd.DaoTareas
-import com.example.taskmapfinal.bd.EntidadTarea
+import java.util.Locale
 
 class ListaTareas : AppCompatActivity() {
 
     private lateinit var toolbarListaTareas: MaterialToolbar
+
+    private lateinit var tilBuscar: TextInputLayout
     private lateinit var etBuscar: TextInputEditText
+
     private lateinit var grupoEstados: MaterialButtonToggleGroup
     private lateinit var btnPendientes: MaterialButton
     private lateinit var btnEnProgreso: MaterialButton
@@ -67,11 +81,11 @@ class ListaTareas : AppCompatActivity() {
             finish()
             return
         }
-        daoTareas = BaseDatosTaskMap.obtenerInstancia(applicationContext).daoTareas()
+
+        daoTareas = BaseDatosTaskMap.Companion.obtenerInstancia(applicationContext).daoTareas()
 
         cargarTareasLocal()
         cargarTareasServidor()
-
     }
 
     override fun onResume() {
@@ -81,6 +95,8 @@ class ListaTareas : AppCompatActivity() {
 
     private fun iniciarVistas() {
         toolbarListaTareas = findViewById(R.id.toolbarListaTareas)
+
+        tilBuscar = findViewById(R.id.tilBuscar)
         etBuscar = findViewById(R.id.etBuscar)
 
         grupoEstados = findViewById(R.id.grupoEstados)
@@ -140,12 +156,15 @@ class ListaTareas : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        fabNuevaTareaLista.setOnClickListener {
-            val intent = Intent(this, NuevaTarea::class.java)
-            intent.putExtra(NuevaTarea.EXTRA_ID_USUARIO, idUsuario)
-            startActivity(intent)
+        tilBuscar.setEndIconOnClickListener {
+            pedirPermisoMicrofonoSiHaceFalta()
         }
 
+        fabNuevaTareaLista.setOnClickListener {
+            val intent = Intent(this, NuevaTarea::class.java)
+            intent.putExtra(NuevaTarea.Companion.EXTRA_ID_USUARIO, idUsuario)
+            startActivity(intent)
+        }
 
         fabNuevaTareaLista.setOnLongClickListener {
             abrirFiltrosOrdenar()
@@ -202,7 +221,6 @@ class ListaTareas : AppCompatActivity() {
                 }
 
                 daoTareas.insertarTodas(paraGuardar)
-
 
             } catch (_: IOException) {
                 mostrarErrorLista("Error de conexión con el servidor")
@@ -305,7 +323,7 @@ class ListaTareas : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        if (requestCode == CODIGO_FILTROS && resultCode == Activity.RESULT_OK && data != null) {
+        if (requestCode == CODIGO_FILTROS && resultCode == RESULT_OK && data != null) {
             filtroPrioridad = data.getStringExtra(FiltrosOrdenar.EXTRA_PRIORIDAD) ?: "Todas"
             filtroFecha = data.getStringExtra(FiltrosOrdenar.EXTRA_FECHA) ?: "Todas"
             filtroOrden = data.getStringExtra(FiltrosOrdenar.EXTRA_ORDEN) ?: "Fecha"
@@ -354,7 +372,6 @@ class ListaTareas : AppCompatActivity() {
         }
     }
 
-
     private fun abrirPantallaPorNombre(nombreClaseSimple: String) {
         val nombreCompleto = "$packageName.$nombreClaseSimple"
         val intent = Intent().setClassName(this, nombreCompleto)
@@ -381,5 +398,55 @@ class ListaTareas : AppCompatActivity() {
 
         private const val PREFS_SESION = "sesion_taskmap"
         private const val CLAVE_ID_USUARIO = "id_usuario"
+    }
+
+    private val lanzadorPermisoMicrofono = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { concedido ->
+        if (concedido) {
+            iniciarReconocimientoVoz()
+        } else {
+            Toast.makeText(this, "Permiso de micrófono denegado", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val lanzadorVoz = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { resultado ->
+        if (resultado.resultCode == RESULT_OK) {
+            val lista = resultado.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val texto = lista?.firstOrNull().orEmpty()
+
+            if (texto.isNotBlank()) {
+                etBuscar.setText(texto)
+                etBuscar.setSelection(texto.length)
+            }
+        }
+    }
+
+    private fun pedirPermisoMicrofonoSiHaceFalta() {
+        val permiso = Manifest.permission.RECORD_AUDIO
+        val concedido = ContextCompat.checkSelfPermission(this, permiso) == PackageManager.PERMISSION_GRANTED
+
+        if (concedido) {
+            iniciarReconocimientoVoz()
+        } else {
+            lanzadorPermisoMicrofono.launch(permiso)
+        }
+    }
+
+    private fun iniciarReconocimientoVoz() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale("es", "ES"))
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Di la tarea a buscar")
+        }
+
+        if (intent.resolveActivity(packageManager) == null) {
+            Toast.makeText(this, "No hay reconocimiento de voz disponible", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lanzadorVoz.launch(intent)
     }
 }

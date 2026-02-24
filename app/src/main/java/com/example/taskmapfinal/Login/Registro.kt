@@ -1,4 +1,4 @@
-package com.example.taskmapfinal
+package com.example.taskmapfinal.Login
 
 import android.content.Intent
 import android.os.Bundle
@@ -7,6 +7,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.example.taskmapfinal.R
 import com.example.taskmapfinal.api.ClienteApi
 import com.example.taskmapfinal.api.PeticionRegistro
 import com.google.android.material.button.MaterialButton

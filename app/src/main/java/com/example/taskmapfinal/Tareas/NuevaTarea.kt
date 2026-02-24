@@ -1,20 +1,26 @@
-package com.example.taskmapfinal
+package com.example.taskmapfinal.Tareas
 
+import android.Manifest
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
-import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.example.taskmapfinal.Mapa
+import com.example.taskmapfinal.R
 import com.example.taskmapfinal.api.ClienteApi
 import com.example.taskmapfinal.api.PeticionTareaActualizar
 import com.example.taskmapfinal.api.PeticionTareaCrear
 import com.example.taskmapfinal.api.TareaApi
+import com.example.taskmapfinal.util.NotificacionesTaskMap
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
@@ -67,10 +73,30 @@ class NuevaTarea : AppCompatActivity() {
     private var idTarea: Long = 0L
     private var modoEdicion: Boolean = false
 
-    // Ubicación (de momento sin mapa real; preparado)
     private var latitud: Double? = null
     private var longitud: Double? = null
     private var direccion: String? = null
+
+    private val lanzadorPermisoNotificaciones = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Si lo concede, perfecto. Si no, simplemente no se mostrará la notificación.
+    }
+
+    private fun tienePermisoNotificaciones(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+                    PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
+
+    private fun pedirPermisoNotificacionesSiHaceFalta() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !tienePermisoNotificaciones()) {
+            lanzadorPermisoNotificaciones.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     override fun onCreate(estadoInstancia: Bundle?) {
         super.onCreate(estadoInstancia)
@@ -81,6 +107,8 @@ class NuevaTarea : AppCompatActivity() {
         configurarDesplegables()
         configurarFechaHora()
         configurarBotones()
+
+        pedirPermisoNotificacionesSiHaceFalta()
 
         idUsuario = obtenerIdUsuario()
         if (idUsuario <= 0) {
@@ -137,16 +165,19 @@ class NuevaTarea : AppCompatActivity() {
 
     private fun configurarDesplegables() {
         val prioridadesUi = listOf("Baja", "Media", "Alta")
-        actPrioridadTarea.setAdapter(ArrayAdapter(this, android.R.layout.simple_list_item_1, prioridadesUi))
+        actPrioridadTarea.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_list_item_1, prioridadesUi)
+        )
         actPrioridadTarea.setText("Media", false)
 
         val estadosUi = listOf("Pendiente", "En progreso", "Hecha")
-        actEstadoTarea.setAdapter(ArrayAdapter(this, android.R.layout.simple_list_item_1, estadosUi))
+        actEstadoTarea.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_list_item_1, estadosUi)
+        )
         actEstadoTarea.setText("Pendiente", false)
     }
 
     private fun configurarFechaHora() {
-        // Valores por defecto si están vacíos
         if (etFechaTarea.text.isNullOrBlank()) {
             etFechaTarea.setText(LocalDate.now().format(formatoFechaUi))
         }
@@ -167,7 +198,6 @@ class NuevaTarea : AppCompatActivity() {
         btnCambiarEnMapa.setOnClickListener {
             val intent = Intent(this, Mapa::class.java)
 
-            // Si ya hay ubicación (editando), centra el mapa ahí
             if (latitud != null && longitud != null) {
                 intent.putExtra(Mapa.EXTRA_LATITUD_INICIAL, latitud!!)
                 intent.putExtra(Mapa.EXTRA_LONGITUD_INICIAL, longitud!!)
@@ -176,11 +206,9 @@ class NuevaTarea : AppCompatActivity() {
             lanzadorMapa.launch(intent)
         }
 
-
         btnGuardarTarea.setOnClickListener {
             if (guardando || cargando) return@setOnClickListener
-            if (modoEdicion) actualizarTareaServidor()
-            else crearTareaServidor()
+            if (modoEdicion) actualizarTareaServidor() else crearTareaServidor()
         }
     }
 
@@ -200,7 +228,6 @@ class NuevaTarea : AppCompatActivity() {
             }
         }
     }
-
 
     private fun cargarDetalleParaEditar() {
         establecerEstadoUi(true)
@@ -253,14 +280,13 @@ class NuevaTarea : AppCompatActivity() {
 
         actEstadoTarea.setText(
             when ((t.estado ?: "pendiente").trim().lowercase()) {
-                "en_progreso" -> "En progreso"
-                "hecha" -> "Hecha"
+                "en_progreso", "en progreso", "progreso" -> "En progreso"
+                "hecha", "hecho", "completada", "completado" -> "Hecha"
                 else -> "Pendiente"
             },
             false
         )
 
-        // fecha_vencimiento viene tipo "yyyy-MM-dd HH:mm:ss"
         val fv = t.fechaVencimiento
         if (!fv.isNullOrBlank()) {
             try {
@@ -268,7 +294,6 @@ class NuevaTarea : AppCompatActivity() {
                 etFechaTarea.setText(dt.toLocalDate().format(formatoFechaUi))
                 etHoraTarea.setText(dt.toLocalTime().format(formatoHoraUi))
             } catch (_: Exception) {
-                // si no parsea, lo dejamos como estaba
             }
         }
 
@@ -336,6 +361,12 @@ class NuevaTarea : AppCompatActivity() {
                 val cuerpo = resp.body()
                 if (cuerpo != null && cuerpo.ok) {
                     Toast.makeText(this@NuevaTarea, "Tarea creada", Toast.LENGTH_SHORT).show()
+
+                    // Notificación tipo WhatsApp (heads-up)
+                    if (tienePermisoNotificaciones()) {
+                        NotificacionesTaskMap.mostrarTareaCreada(this@NuevaTarea, titulo)
+                    }
+
                     finish()
                 } else {
                     Toast.makeText(this@NuevaTarea, cuerpo?.error ?: "No se pudo crear la tarea", Toast.LENGTH_SHORT).show()
@@ -488,7 +519,6 @@ class NuevaTarea : AppCompatActivity() {
         etFechaTarea.isEnabled = !bloqueado
         etHoraTarea.isEnabled = !bloqueado
 
-        // Esto mantiene el click aunque el EditText sea no focusable
         etFechaTarea.isClickable = !bloqueado
         etHoraTarea.isClickable = !bloqueado
     }

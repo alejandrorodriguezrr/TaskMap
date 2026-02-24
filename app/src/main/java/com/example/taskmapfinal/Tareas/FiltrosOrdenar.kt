@@ -1,8 +1,9 @@
-package com.example.taskmapfinal
+package com.example.taskmapfinal.Tareas
 
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.example.taskmapfinal.R
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.MaterialAutoCompleteTextView

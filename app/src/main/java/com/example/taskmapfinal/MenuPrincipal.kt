@@ -17,6 +17,13 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.taskmapfinal.Login.Login
+import com.example.taskmapfinal.Tareas.Adaptadores.AdaptadorTareasHome
+import com.example.taskmapfinal.Tareas.DetalleTarea
+import com.example.taskmapfinal.Tareas.EstadoTarea
+import com.example.taskmapfinal.Tareas.ListaTareas
+import com.example.taskmapfinal.Tareas.NuevaTarea
+import com.example.taskmapfinal.Tareas.Tarea
 import com.example.taskmapfinal.api.ClienteApi
 import com.example.taskmapfinal.api.PeticionTareaActualizar
 import com.example.taskmapfinal.api.TareaApi
@@ -125,7 +132,7 @@ class MenuPrincipal : AppCompatActivity() {
                     true
                 }
                 R.id.nav_tareas -> {
-                    abrirPantallaPorNombre("ListaTareas", mapOf(ListaTareas.EXTRA_ID_USUARIO to idUsuario))
+                    abrirPantallaPorNombre("Tareas.ListaTareas", mapOf(ListaTareas.EXTRA_ID_USUARIO to idUsuario))
                     drawerLayout.closeDrawers()
                     true
                 }
@@ -154,7 +161,9 @@ class MenuPrincipal : AppCompatActivity() {
     private fun configurarRecycler() {
         adaptador = AdaptadorTareasHome(
             { tarea ->
-                abrirPantallaPorNombre("DetalleTarea", mapOf(DetalleTarea.EXTRA_ID_TAREA to tarea.idTarea))
+                val intent = Intent(this, com.example.taskmapfinal.Tareas.DetalleTarea::class.java)
+                intent.putExtra(com.example.taskmapfinal.Tareas.DetalleTarea.EXTRA_ID_TAREA, tarea.idTarea)
+                startActivity(intent)
             },
             { tarea ->
                 marcarComoHechaServidor(tarea.idTarea)
@@ -167,11 +176,14 @@ class MenuPrincipal : AppCompatActivity() {
 
     private fun iniciarListeners() {
         btnVerTareas.setOnClickListener {
-            abrirPantallaPorNombre("ListaTareas", mapOf(ListaTareas.EXTRA_ID_USUARIO to idUsuario))
+            val intent = Intent(this, com.example.taskmapfinal.Tareas.ListaTareas::class.java)
+            intent.putExtra(com.example.taskmapfinal.Tareas.ListaTareas.EXTRA_ID_USUARIO, idUsuario)
+            startActivity(intent)
         }
 
-        btnVerMapa.setOnClickListener { abrirPantallaPorNombre("Mapa") }
-
+        btnVerMapa.setOnClickListener {
+            startActivity(Intent(this, com.example.taskmapfinal.Mapa::class.java))
+        }
         btnNuevaTarea.setOnClickListener {
             val intent = Intent(this, NuevaTarea::class.java)
             intent.putExtra(NuevaTarea.EXTRA_ID_USUARIO, idUsuario)
